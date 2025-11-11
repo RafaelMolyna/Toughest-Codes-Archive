@@ -1,17 +1,15 @@
 import sys
 
-# Set higher recursion depth for deep problems, as this
-# recursive solution can go many levels deep.
+# Set higher recursion depth for deep problems
 sys.setrecursionlimit(2000)
 
 # Pre-calculated values (Catalan-like sequence)
-# TRI_ARR[N] = answer for N triangles (N*3 points) with 0 or 1 Reds.
 TRI_ARR = (
-    1,  # 0 triangles (n=0)
-    1,  # 1 triangle (n=3)
-    3,  # 2 triangles (n=6)
-    12,  # 3 triangles (n=9)
-    55,  # 4 triangles (n=12)
+    1,
+    1,
+    3,
+    12,
+    55,
     273,
     1428,
     7752,
@@ -20,148 +18,136 @@ TRI_ARR = (
     1430715,
     8414640,
     50067108,
-    300830572,  # 13 triangles (n=39)
+    300830572,
 )
 
-# Memoization cache (a dictionary).
-# Key: A tuple of booleans (the state)
-# Value: The computed result (an integer)
+# Memoization cache
 memo = {}
 
 
-def count_reds(points):
-    """Counts red platoons (True values) in a tuple."""
-    return sum(1 for p in points if p)
+def is_all_reds_in_mod_3(points):
+    """Checks if all Reds are at indices i % 3 == 0."""
+    for i, p in enumerate(points):
+        if p and i % 3 != 0:
+            return False
+    return True
 
 
-def count_reds_effective(points):
+def save_all_rotations(key_tuple, num_points, result):
     """
-    Counts "effective" reds: platoons at an index i % 3 != 0.
-    This is used for the "magic" optimization (see solve() function).
+    Pre-caches the answer for all N rotations of the
+    original key.
     """
-    return sum(1 for i, p in enumerate(points) if p and i % 3 != 0)
+    memo[key_tuple] = result
+    for i in range(1, num_points):
+        # Python's fast tuple slicing for rotation
+        rotated_key = key_tuple[i:] + key_tuple[:i]
+        memo[rotated_key] = result
 
 
-def solve(points):
+def solve(points_tuple, num_points, reds_count):
     """
-    Main recursive function with memoization.
-    'points' is expected to be a tuple (to be hashable and used as a dict key).
-    This function is PURE; it does not mutate 'points'.
+    Main recursive function.
+    'points_tuple' is the *original* (un-rotated) problem.
     """
-    num_points = len(points)
 
-    # Base Case 0: Empty array (an empty sub-problem)
-    # has 1 solution (do nothing).
+    # Base Case 0: Empty array
     if num_points == 0:
         return 1
 
-    # --- MEMOIZATION CHECK ---
-    # We must use a tuple as the key because lists are not hashable.
-    # This check is O(1) on average.
-    if points in memo:
-        return memo[points]
+    # --- MEMOIZATION CHECK (Original Key) ---
+    if points_tuple in memo:
+        return memo[points_tuple]
 
-    reds = count_reds(points)
+    # --- FIX 1: Define num_triag at the top ---
     num_triag = num_points // 3
 
-    # Base Case 1: 0 or 1 Red platoon.
-    # The problem is trivial, solution is the pre-calculated value.
-    if reds <= 1:
-        memo[points] = TRI_ARR[num_triag]  # Store result
-        return memo[points]
-
-    # --- Logic: Rotate array to put the first Red at index 0 ---
-    # We create a list copy to perform the rotation.
-    rotated_points = list(points)
-    try:
-        first_red_index = rotated_points.index(True)
-    except ValueError:
-        # This should be impossible due to the 'reds <= 1' check,
-        # but as a safeguard, we handle it.
-        memo[points] = TRI_ARR[num_triag]
-        return memo[points]
-
-    if first_red_index > 0:
-        # Perform the rotation (Python's slice version of the JS splice)
-        rotated_points = (
-            rotated_points[first_red_index:] + rotated_points[:first_red_index]
-        )
-
-    # Base Case 2: "Magic" mod 3 optimization.
-    # If all Reds are at indices i % 3 == 0 (relative to the first Red),
-    # then p1 (i % 3 == 1) and p2 (i % 3 == 2) will *always* be Black.
-    # The problem becomes identical to the 0-Red case.
-    if count_reds_effective(rotated_points) == 0:
-        memo[points] = TRI_ARR[num_triag]  # Store result
-        return memo[points]
-
-    # Base Case 3: Pruning.
-    # If we have more Reds than we can make triangles, it's impossible.
-    if reds > num_triag:
-        memo[points] = 0  # Store result
+    # --- Base Case 1: Pruning ---
+    # --- FIX 2: Use consistent lowercase 'num_triag' ---
+    if reds_count > num_triag:
+        save_all_rotations(points_tuple, num_points, 0)
         return 0
+
+    # --- Base Case 2: 0 or 1 Red ---
+    if reds_count <= 1:
+        # 'num_triag' is now guaranteed to be defined
+        result = TRI_ARR[num_triag]
+        save_all_rotations(points_tuple, num_points, result)
+        return result
+
+    # --- Logic: Rotate to Canonical Form ---
+    # We find the first red and create a *new* canonical tuple.
+    try:
+        first_red_index = points_tuple.index(1)
+        canonical_points = (
+            points_tuple[first_red_index:] + points_tuple[:first_red_index]
+        )
+    except ValueError:
+        # This should be impossible (handled by reds_count <= 1)
+        # but just in case, return the 0-red answer.
+        return TRI_ARR[num_triag]
+
+    # --- Base Case 3: "Magic" mod 3 optimization ---
+    # This check *must* happen *after* the rotation.
+    if is_all_reds_in_mod_3(canonical_points):
+        # 'num_triag' is defined
+        result = TRI_ARR[num_triag]
+        save_all_rotations(points_tuple, num_points, result)
+        return result
 
     # --- Recursive Step ---
     # We fixed p0 (index 0) which is guaranteed to be RED here.
-    # We now find all (p1, p2) pairs to form the first triangle.
     num_triag_count = 0
 
-    # Loop for p1. We increment by 3 due to the (p1 - 1) % 3 == 0 constraint.
+    # We iterate using the `canonical_points`
     for p1 in range(1, num_points, 3):
         # p0 is Red, so p1 MUST be Black.
-        if rotated_points[p1]:
+        if canonical_points[p1]:
             continue
 
-        # --- Sub-problem 1 (points 1 to p1-1) ---
-        # We slice the *rotated* list and convert to a tuple for recursion.
-        points_a1 = tuple(rotated_points[1:p1])
-        # Pruning: If sub-problem 1 is impossible, skip this p1.
-        if count_reds(points_a1) > len(points_a1) // 3:
+        points_a1 = canonical_points[1:p1]
+        n1 = len(points_a1)
+        r1 = sum(points_a1)
+        if r1 > n1 // 3:
             continue
 
-        area1 = solve(points_a1)
-        # Pruning: If sub-problem 1 has 0 solutions, skip this p1.
+        area1 = solve(points_a1, n1, r1)
         if area1 == 0:
             continue
 
-        # Loop for p2. We increment by 3 due to the (p2 - p1 - 1) % 3 == 0 constraint.
         for p2 in range(p1 + 1, num_points, 3):
             # p0 is Red, so p2 MUST be Black.
-            if rotated_points[p2]:
+            if canonical_points[p2]:
                 continue
 
-            # --- Sub-problem 2 (points p1+1 to p2-1) ---
-            points_a2 = tuple(rotated_points[p1 + 1 : p2])
-            # Pruning: If sub-problem 2 is impossible, skip this p2.
-            if count_reds(points_a2) > len(points_a2) // 3:
+            points_a2 = canonical_points[p1 + 1 : p2]
+            n2 = len(points_a2)
+            r2 = sum(points_a2)
+            if r2 > n2 // 3:
                 continue
 
-            # --- Sub-problem 3 (points p2+1 to N-1) ---
-            points_a3 = tuple(rotated_points[p2 + 1 : num_points])
-            # Pruning: If sub-problem 3 is impossible, skip this p2.
-            if count_reds(points_a3) > len(points_a3) // 3:
+            points_a3 = canonical_points[p2 + 1 : num_points]
+            n3 = len(points_a3)
+            r3 = sum(points_a3)
+            if r3 > n3 // 3:
                 continue
 
-            # Recurse on sub-problems 2 and 3
-            area2 = solve(points_a2)
-            # Pruning: If sub-problem 2 has 0 solutions, skip this p2.
+            area2 = solve(points_a2, n2, r2)
             if area2 == 0:
                 continue
 
-            area3 = solve(points_a3)
-            # (No need to check area3 for 0, as we just add it)
+            area3 = solve(points_a3, n3, r3)
 
-            # Total ways = product of sub-problems
             num_triag_count += area1 * area2 * area3
 
     # --- MEMOIZATION SAVE ---
-    # Store the final computed result for this state (the original 'points' tuple).
-    memo[points] = num_triag_count
+    # Save the result for the original key and all its rotations
+    save_all_rotations(points_tuple, num_points, num_triag_count)
     return num_triag_count
 
 
 def main():
-    """Main function to read input from stdin, process test cases, and print output."""
+    """Main function to read input, process cases, and print output."""
     lines = sys.stdin.read().splitlines()
     num_cases = int(lines[0])
     line_index = 1
@@ -171,28 +157,29 @@ def main():
         if line_index >= len(lines):
             break
 
-        num_points = int(lines[line_index])
+        num_points_str = lines[line_index]
+        if not num_points_str:
+            break
+        num_points = int(num_points_str)
         line_index += 1
 
         if line_index >= len(lines):
             break
-
         points_str = lines[line_index]
         line_index += 1
 
-        # Convert the string of 'R'/'B' to a tuple of booleans.
-        # A tuple is used because it's immutable and hashable,
-        # which is required for it to be a dictionary key.
-        points_tuple = tuple(char == "R" for char in points_str)
+        # Use 1 for 'R' and 0 for 'B'
+        points_list = [1 if char == "R" else 0 for char in points_str]
+        reds_count = sum(points_list)
 
-        # CRITICAL: Clear the memoization cache for each new test case.
-        # Otherwise, results from one case will pollute the next.
+        # This is the hashable key for our memo.
+        points_tuple = tuple(points_list)
+
         memo.clear()
 
-        solution = solve(points_tuple)
+        solution = solve(points_tuple, num_points, reds_count)
         output.append(f"Case {i}: {solution}")
 
-    # Print all results at the end
     sys.stdout.write("\n".join(output) + "\n")
 
 

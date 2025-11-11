@@ -1,63 +1,41 @@
 /**
- * Toughest-Codes-Archive
  * Beecrowd 1058: Independent Attacking Zones
- * * This is a C++-native, high-performance implementation of the
- * recursive, memoized DP solution.
- * * The core bottleneck in a naive C++ port is using `std::map<vector<bool>>`.
- * `std::map` is a tree, requiring O(N*logM) for lookups/inserts.
- * * This solution uses `std::unordered_map`, which is a hash map.
- * Lookups/inserts are amortized O(N) (to hash the vector) or O(1).
- * This requires a custom hash function for `vector<bool>`.
- * * Original JS logic by: Rafael Molina
- * C++ Optimization by: Gemini
+ *
+ * * CP-Optimized Port of the "saveAllRotations" logic *
+ *
+ * This port implements the user's latest JS logic:
+ * 1. Pass 'vector<char>' by value.
+ * 2. Save the original vector as 'key'.
+ * 3. Check memo for 'key'.
+ * 4. Mutate the *local copy* 'points' to its canonical form.
+ * 5. Run base cases and recursion on the mutated 'points'.
+ * 6. Call 'saveAllRotations(key, ...)' to store the result.
  */
-
-// Play with: > g++ solution.cpp -o solution.exe && type stdin.txt | solution.exe
-// Play with: > g++ solution.cpp -o solution.exe && type "test3 cult.txt" | solution.exe
 
 #include <iostream>
 #include <vector>
 #include <string>
-#include <numeric>       // For std::accumulate (though we'll write our own)
-#include <algorithm>     // For std::rotate, std::find
-#include <unordered_map> // The "fast map" (hash map)
+#include <numeric>   // For std::accumulate
+#include <algorithm> // For std::find, std::rotate
+#include <unordered_map>
+#include <iterator> // For std::distance
 
-// Use long long for all counts to prevent integer overflow.
 using namespace std;
 typedef long long ll;
 
 // --- Pre-calculated Base Cases ---
-// The "Catalan-like" sequence for N triangles with 0/1 Reds.
-// triArr[N] = answer for N*3 points.
 ll triArr[] = {
-    1,  // 0 triangles (n=0)
-    1,  // 1 triangle (n=3)
-    3,  // 2 triangles (n=6)
-    12, // 3 triangles (n=9)
-    55, // 4 triangles (n=12)
-    273,
-    1428,
-    7752,
-    43263,
-    246675,
-    1430715,
-    8414640,
-    50067108,
-    300830572 // 13 triangles (n=39)
-};
+    1, 1, 3, 12, 55, 273, 1428, 7752, 43263,
+    246675, 1430715, 8414640, 50067108, 300830572};
 
-// --- Custom Hasher (The "Magic") ---
-// We must teach std::unordered_map how to hash a vector<bool>.
-// This struct provides a hash function that combines all
-// booleans into a single, unique-ish hash value.
-struct VectorBoolHasher
+// --- Custom Hasher for vector<char> ---
+struct VectorCharHasher
 {
-  std::size_t operator()(const vector<bool> &v) const
+  std::size_t operator()(const vector<char> &v) const
   {
     std::size_t hash = v.size();
-    for (bool b : v)
+    for (char b : v)
     {
-      // A common hash-combining formula
       hash ^= (b << 1) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
     }
     return hash;
@@ -65,156 +43,163 @@ struct VectorBoolHasher
 };
 
 // --- Memoization Cache ---
-// We now use the fast hash map.
-// Key: The state (the array of points)
-// Value: The computed answer (ll)
-unordered_map<vector<bool>, ll, VectorBoolHasher> memo;
+unordered_map<vector<char>, ll, VectorCharHasher> memo;
 
-// --- Helper Functions (Optimized) ---
+// --- Helper Functions ---
 
-// Pass by const reference (&) to avoid copying the whole vector
-int countReds(const vector<bool> &points)
+// Pass by const reference (&)
+int countReds(const vector<char> &points)
 {
   int acc = 0;
-  for (bool p : points)
+  for (char p : points)
   {
-    if (p)
-      acc++;
+    acc += p;
   }
   return acc;
 }
 
 // Pass by const reference (&)
-int countRedsEffective(const vector<bool> &points)
+bool isAllRedsInMod3(const vector<char> &points)
 {
-  int acc = 0;
   for (int i = 0; i < points.size(); ++i)
   {
     if (points[i] && i % 3 != 0)
     {
-      acc++;
+      return false;
     }
   }
-  return acc;
+  return true;
 }
 
-// --- The Main Recursive Function ---
+/**
+ * @brief Pre-caches the answer for all N rotations.
+ */
+void saveAllRotations(vector<char> key_vec, int num_points, ll result)
+{
+  memo[key_vec] = result;
+  for (int i = 1; i < num_points; ++i)
+  {
+    // std::rotate is an efficient way to get the next rotation
+    rotate(key_vec.begin(), key_vec.begin() + 1, key_vec.end());
+    memo[key_vec] = result;
+  }
+}
 
 /**
- * @param points The sub-problem (array segment) to solve.
- * We pass *by value* here. This is INTENTIONAL.
- * It creates a copy, which we are free to mutate
- * (rotate) without causing side effects for the caller.
- * @return The total number of valid triangulations (as a long long).
+ * @param points The sub-problem. Passed *by value* to
+ * create a local, mutable copy.
+ * @param numPoints The size of the sub-problem.
+ * @param redsCount The pre-computed red count.
  */
-ll solve(vector<bool> points)
+ll solve(vector<char> points, int numPoints, int redsCount)
 {
-  int numPoints = points.size();
-
-  // Base Case 0: Empty array
   if (numPoints == 0)
   {
     return 1;
   }
 
-  // --- MEMOIZATION CHECK ---
-  // This is now an O(N) (hash) + O(1) (lookup) operation,
-  // which is *much* faster than the O(N*logM) of std::map.
-  if (memo.count(points))
+  // Save the original key (which is the 'points' vector
+  // as it was passed in, before mutation).
+  const vector<char> original_key = points;
+
+  // --- MEMOIZATION CHECK (Original Key) ---
+  auto it_memo = memo.find(original_key);
+  if (it_memo != memo.end())
   {
-    return memo[points];
+    return it_memo->second;
   }
 
-  // --- Base Case 1: 0 or 1 Red ---
-  int reds = countReds(points);
   int numTriag = numPoints / 3;
-  if (reds <= 1)
+
+  // --- Base Case 1: Pruning ---
+  if (redsCount > numTriag)
   {
-    // Store and return
-    return memo[points] = triArr[numTriag];
+    saveAllRotations(original_key, numPoints, 0);
+    return 0;
   }
 
-  // --- Base Case 2: Pruning ---
-  if (reds > numTriag)
+  // --- Base Case 2: 0 or 1 Red ---
+  // (Re-adding this tweak as it's a solid optimization)
+  if (redsCount <= 1)
   {
-    return memo[points] = 0;
+    ll result = triArr[numTriag];
+    saveAllRotations(original_key, numPoints, result);
+    return result;
   }
 
-  // --- Logic from your original solution (The "Rotation") ---
-  // We rotate *our copy* of 'points' to put the first Red at index 0.
-  auto it = find(points.begin(), points.end(), true);
-  if (it != points.begin() && it != points.end())
-  {
-    // This is the C++ version of your `splice/push` trick.
-    rotate(points.begin(), it, points.end());
-  }
+  // --- Logic: Rotate *local copy* to Canonical Form ---
+  auto it_find = find(points.begin(), points.end(), (char)1);
+  // No need to check for points.end(), handled by redsCount <= 1
+  rotate(points.begin(), it_find, points.end());
 
-  // --- Base Case 3: "Effective Red" Pruning ---
-  // This check *must* happen *after* the rotation.
-  if (countRedsEffective(points) == 0)
+  // --- Base Case 3: "Magic" mod 3 optimization ---
+  // This check happens *after* the local copy was rotated.
+  if (isAllRedsInMod3(points))
   {
-    return memo[points] = triArr[numTriag];
+    ll result = triArr[numTriag];
+    saveAllRotations(original_key, numPoints, result);
+    return result;
   }
 
   // --- Recursive Step ---
-  // p0 is at index 0 (and it's Red).
+  // 'points' is now the canonical (red-first) vector.
   ll numTriagCount = 0;
+
   for (int p1 = 1; p1 < numPoints; p1 += 3)
   {
-    if (points[p1])
-    { // p1 must be Black
+    if (points[p1]) // p1 must be Black
+    {
       continue;
     }
 
-    // Sub-problem 1 (points 1 to p1-1)
-    // This 'slice' (vector construction) is the new bottleneck,
-    // but it is *required* by the algorithm's rotating state.
-    vector<bool> pointsA1(points.begin() + 1, points.begin() + p1);
-    if (countReds(pointsA1) > pointsA1.size() / 3)
+    vector<char> pointsA1(points.begin() + 1, points.begin() + p1);
+    int n1 = pointsA1.size();
+    int r1 = countReds(pointsA1);
+    if (r1 > n1 / 3)
       continue;
 
-    ll area1 = solve(pointsA1);
+    ll area1 = solve(pointsA1, n1, r1);
     if (area1 == 0)
       continue;
 
     for (int p2 = p1 + 1; p2 < numPoints; p2 += 3)
     {
-      if (points[p2])
-      { // p2 must be Black
+      if (points[p2]) // p2 must be Black
+      {
         continue;
       }
 
-      // Sub-problem 2 (p1+1 to p2-1)
-      vector<bool> pointsA2(points.begin() + p1 + 1, points.begin() + p2);
-      if (countReds(pointsA2) > pointsA2.size() / 3)
+      vector<char> pointsA2(points.begin() + p1 + 1, points.begin() + p2);
+      int n2 = pointsA2.size();
+      int r2 = countReds(pointsA2);
+      if (r2 > n2 / 3)
         continue;
 
-      // Sub-problem 3 (p2+1 to N-1)
-      vector<bool> pointsA3(points.begin() + p2 + 1, points.end());
-      if (countReds(pointsA3) > pointsA3.size() / 3)
+      vector<char> pointsA3(points.begin() + p2 + 1, points.end());
+      int n3 = pointsA3.size();
+      int r3 = countReds(pointsA3);
+      if (r3 > n3 / 3)
         continue;
 
-      // Recurse only if all pruning passes
-      ll area2 = solve(pointsA2);
+      ll area2 = solve(pointsA2, n2, r2);
       if (area2 == 0)
         continue;
 
-      ll area3 = solve(pointsA3);
-      if (area3 == 0)
-        continue;
+      ll area3 = solve(pointsA3, n3, r3);
 
       numTriagCount += area1 * area2 * area3;
     }
   }
 
   // --- MEMOIZATION SAVE ---
-  return memo[points] = numTriagCount;
+  // Save the result for the *original* key and all its rotations
+  saveAllRotations(original_key, numPoints, numTriagCount);
+  return numTriagCount;
 }
 
 // --- Main Function ---
 int main()
 {
-  // Optimize C++ I/O streams
   ios_base::sync_with_stdio(false);
   cin.tie(NULL);
 
@@ -227,16 +212,25 @@ int main()
     string line;
     cin >> line;
 
-    vector<bool> points(numPoints);
+    vector<char> points(numPoints);
+    int redsCount = 0;
     for (int j = 0; j < numPoints; ++j)
     {
-      points[j] = (line[j] == 'R');
+      if (line[j] == 'R')
+      {
+        points[j] = 1;
+        redsCount++;
+      }
+      else
+      {
+        points[j] = 0;
+      }
     }
 
-    // Clear memo for each new test case
     memo.clear();
 
-    cout << "Case " << i << ": " << solve(points) << "\n";
+    // Pass 'points' by value. 'solve' gets its own copy.
+    cout << "Case " << i << ": " << solve(points, numPoints, redsCount) << "\n";
   }
 
   return 0;

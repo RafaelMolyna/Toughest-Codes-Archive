@@ -1,4 +1,4 @@
-# Toughest-Codes-Archive
+# Toughest Codes Archive
 
 Toughest competitive programming challenges, "un-toughed." A collection of rare, step-by-step code elucidations.
 
@@ -28,7 +28,7 @@ Every solution in this archive will contain:
 
 I am building this in the open, but I can't find every bug or every optimization alone. This is where you come in.
 
-#### **HAVE THE COURAGE TO SHARE.**
+**HAVE THE COURAGE TO SHARE.**
 
 If you find an improvement in my code—a bug fix, a faster algorithm, cleaner syntax—don't hoard it. **Don't hesitate**.
 
@@ -36,7 +36,7 @@ Open an Issue. Submit a Pull Request. Fork it and show me what you've done. Ask 
 
 We all get better when we stop being afraid of being "robbed." Let's prove that the **antifragile** mindset wins: we grow stronger by sharing our "gold," not by hiding it.
 
-#### **Got Your Own Brilliant Solution?**
+**Got Your Own Brilliant Solution?**
 
 Do you have a step-by-step explanation for a hard problem that isn't here? This is the place to share it.
 
@@ -46,6 +46,5 @@ Fork the repo, add your solution (using the new folder structure), and submit a 
 
 All solutions are organized by their problem ID.
 
-* [Beecrowd (URI)]([url](https://judge.beecrowd.com/))
-  * [1058 - Independent Attacking Zones](BeeCrowd/1058-Independent-Attacking-Zones/)
-
+- [Beecrowd (URI)](<[url](https://judge.beecrowd.com/)>)
+  - [1058 - Independent Attacking Zones](BeeCrowd/1058-Independent-Attacking-Zones/)

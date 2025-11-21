@@ -150,3 +150,12 @@ Given:
 
 **Repository Maintainer Notes:**
 This archive contains the optimized C++ solution and the memory-hacked JavaScript solution. Both implement the DFA Flattening strategy.
+
+## Bibliographic References
+
+- [Aho corasick construction + tricks](https://www.youtube.com/watch?v=pajwN4NKwGw&list=PLhJD1GulMYwXEjzZTEzwAMkDmrSPhakCD&index=9)
+- [[JorInic] Hora Júnior 28: Algoritmos e Estruturas para Strings III: Aho–Corasick (19abr22) Parte 2](https://www.youtube.com/watch?v=5Ch8hE3P-GA&list=PLhJD1GulMYwXEjzZTEzwAMkDmrSPhakCD&index=8)
+- [Knuth Morris Pratt (KMP) String Search Algorithm - tutorial with failure function in Java](https://www.youtube.com/watch?v=EL4ZbRF587g&list=PLhJD1GulMYwXEjzZTEzwAMkDmrSPhakCD&index=7)
+- [UCSD CSE 100 SP20 PA6 Discussion (the BEST aho-corasick video I've seen so far!!!)](https://www.youtube.com/watch?v=qF7_KS4bmPU&list=PLhJD1GulMYwXEjzZTEzwAMkDmrSPhakCD&index=6)
+- [Aho - Corasick Algorithm](https://www.youtube.com/watch?v=m3PDS3rxhoc&list=PLhJD1GulMYwXEjzZTEzwAMkDmrSPhakCD&index=5)
+- [Advanced Data Structures: Aho-Corasick Automaton](https://www.youtube.com/watch?v=O7_w001f58c&list=PLhJD1GulMYwXEjzZTEzwAMkDmrSPhakCD&index=4)

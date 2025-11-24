@@ -1,174 +1,200 @@
 "use strict";
 
-// Using file descriptor 0 is often safer for standard input in Node.js
-// const input = require("fs").readFileSync(0, "utf8");
-const input = require("fs").readFileSync("./dev/stdin2", "utf8");
-// Fixed regex to handle multiple newlines/spaces safely like in the fix
+// Read from Standard Input (File Descriptor 0)
+// We use trim() to avoid trailing whitespace issues, and split by any newline.
+const input = require("fs").readFileSync(0, "utf8");
+// const input = require("fs").readFileSync("./dev/stdin2", "utf8");
 const lines = input.trim().split(/[\r\n]+/);
 
+/**
+ * Calculates the Greatest Common Divisor (GCD) of two numbers.
+ * Used to simplify fractions to their irreducible form.
+ * Note: Uses Math.abs() to ensure we don't get negative divisors.
+ */
 function gcd(a, b) {
-  // GCD needs positive numbers to behave predictably
+  a = Math.abs(a);
+  b = Math.abs(b);
   return b === 0 ? a : gcd(b, a % b);
 }
 
+/**
+ * Compares two time fractions t1 and t2.
+ * Returns the smaller VALID time (non-negative and valid denominator).
+ * * Logic:
+ * To compare n1/d1 < n2/d2 without floating point precision loss,
+ * we cross-multiply: n1 * d2 < n2 * d1.
+ * We use BigInt here because these products can exceed Number.MAX_SAFE_INTEGER.
+ */
 function compareAndReturn(t1, t2) {
-  if (!t1) {
-    return t2 || [0, 0];
-  }
+  // Filter out invalid times (null or denominator 0)
+  if (!t1) return t2 || [0, 0];
+  if (!t2) return t1;
 
-  if (!t2) {
-    return t1;
-  }
-
-  // ORIGINALLY: return t1[0] / t1[1] < t2[0] / t2[1] ? t1 : t2;
-  // BIGINT FIX: Cross-multiplication
-  // n1/d1 < n2/d2  <=>  n1*d2 < n2*d1
+  // Cross-multiplication with BigInt protection
   const val1 = BigInt(t1[0]) * BigInt(t2[1]);
   const val2 = BigInt(t2[0]) * BigInt(t1[1]);
 
   return val1 < val2 ? t1 : t2;
 }
 
-function findCollision(a1, b1, c1, d1, a2, b2, c2, d2) {
-  // ... (Your comments) ...
-
+/**
+ * Solves for a specific collision case defined by parameters.
+ * Handles two scenarios internally:
+ * 1. Parallel Radius Functions (a1 == a2)
+ * 2. Intersecting Radius Functions (a1 != a2)
+ */
+function solveCase(a1, b1, c1, d1, a2, b2, c2, d2) {
+  // === SCENARIO 1: PARALLEL RADIUS ===
+  // Slopes (A) are equal. Radii are parallel lines r(t) = At + B.
   if (a1 === a2) {
-    if (b1 === b2) {
-      return compareAndReturn(
-        findCollisionOverlapping(a1, b1, c1, d1, c2, d2),
-        findCollisionOverlapping(-a1, -b1, c1, d1 + 180, c2, d2)
-      ).join(" ");
+    // If slopes are same but intercepts (B) differ, lines are parallel and distinct.
+    // They never intersect (unless radius is 0, which is handled in overlapping logic).
+    if (b1 !== b2) {
+      return null;
     }
-
-    if (a1 === 0) {
-      return "0 0";
-    }
-
-    const t = findCollisionNotParallel(-a1, -b1, c1, d1 + 180, a2, b2, c2, d2);
-    return t ? t.join(" ") : "0 0";
+    // If slopes AND intercepts are same, the particles share the same Radius path forever.
+    // Collision depends purely on angles aligning or radius hitting 0.
+    return findCollisionOverlapping(a1, b1, c1, d1, c2, d2);
   }
 
-  if (a1 === -a2) {
-    if (b1 === -b2) {
-      return compareAndReturn(
-        findCollisionOverlapping(a1, b1, c1, d1, c2, d2),
-        findCollisionOverlapping(-a1, -b1, c1, d1 + 180, c2, d2)
-      ).join(" ");
-    }
-
-    if (a1 === 0) {
-      return "0 0";
-    }
-
-    const t = findCollisionNotParallel(a1, b1, c1, d1, a2, b2, c2, d2);
-    return t ? t.join(" ") : "0 0";
-  }
-
-  const t1 = findCollisionNotParallel(a1, b1, c1, d1, a2, b2, c2, d2);
-  const t2 = findCollisionNotParallel(-a1, -b1, c1, d1 + 180, a2, b2, c2, d2);
-
-  return compareAndReturn(t1, t2).join(" ");
+  // === SCENARIO 2: INTERSECTING RADIUS ===
+  // Slopes differ. The radii lines intersect at exactly ONE point in time.
+  return findCollisionNotParallel(a1, b1, c1, d1, a2, b2, c2, d2);
 }
 
-function findCollisionRadiusZero(a, b) {
-  if (a * b > 0) {
-    return null;
-  }
+/**
+ * Main Solver Function.
+ * Polar coordinates allow two types of collision:
+ * Case A: (r, θ) collides with (r, θ)
+ * Case B: (r, θ) collides with (-r, θ + 180°) -> "Anti-parallel" pass-through
+ */
+function findCollision(a1, b1, c1, d1, a2, b2, c2, d2) {
+  // Case A: Standard Collision
+  // We check if particles meet at same radius and same angle.
+  const t_same = solveCase(a1, b1, c1, d1, a2, b2, c2, d2);
 
-  const [ta, tb] = a > 0 ? [-b, a] : [b, -a];
+  // Case B: Anti-Parallel Collision
+  // Mathematically, r1 = -r2 is equivalent to saying Particle 1 is at -r1.
+  // We simulate this by inverting Particle 1's radius parameters (-A, -B)
+  // and shifting its angle by 180 degrees.
+  const t_opp = solveCase(-a1, -b1, c1, d1 + 180, a2, b2, c2, d2);
 
-  const commonDivisor = gcd(ta, tb);
-
-  // Return integer fraction, don't divide!
-  return [ta / commonDivisor, tb / commonDivisor];
+  // Return the earliest valid collision time between the two cases.
+  const best = compareAndReturn(t_same, t_opp);
+  return best.join(" ");
 }
 
-function findCollisionOverlapping(a1, b1, c1, d1, c2, d2) {
-  if (b1 === 0) {
+/**
+ * Handles logic when Radius functions are IDENTICAL (r1(t) == r2(t)).
+ * Collision occurs if:
+ * 1. Radius becomes 0 (Origin is a singularity where angles don't matter).
+ * 2. Angles align (θ1 == θ2).
+ */
+function findCollisionOverlapping(a, b, c1, d1, c2, d2) {
+  // 1. Check for Radius Zero crossing
+  // r = at + b = 0  ==>  t = -b/a
+  let t_zero = null;
+
+  if (a !== 0) {
+    const num = -b;
+    const den = a;
+    // We strictly need time t >= 0
+    // Check sign match: (num >= 0 and den > 0) OR (num <= 0 and den < 0)
+    if ((num >= 0 && den > 0) || (num <= 0 && den < 0)) {
+      const common = gcd(num, den);
+      t_zero = [Math.abs(num) / common, Math.abs(den) / common];
+    }
+  } else if (b === 0) {
+    // If A=0 and B=0, radius is ALWAYS 0. Collision is immediate at t=0.
     return [0, 1];
   }
 
-  const t1 = findCollisionRadiusZero(a1, b1);
+  // 2. Check for Angle Alignment
+  // Normalize start angles to positive [0, 360) range
+  d1 = ((d1 % 360) + 360) % 360;
+  d2 = ((d2 % 360) + 360) % 360;
 
-  d1 %= 360;
-  d2 %= 360;
-
-  // Fix negative modulo results
-  if (d1 < 0) d1 += 360;
-  if (d2 < 0) d2 += 360;
-
-  if (d2 === d1) {
-    return [0, 1];
-  }
-
+  // If angular velocities (C) are identical
   if (c1 === c2) {
-    if (d1 === d2) {
-      return [0, 1];
-    }
-    return null;
+    // They must start aligned to ever collide (unless hitting origin)
+    if (d1 === d2) return [0, 1];
+    return compareAndReturn(t_zero, null);
   }
 
-  if (c1 > c2) {
-    while (d1 > d2) {
-      d2 += 360;
-    }
-  } else {
-    while (d1 < d2) {
-      d1 += 360;
-    }
+  // Optimization: Ensure C1 > C2 so relative speed is positive
+  if (c1 < c2) {
     [c1, c2, d1, d2] = [c2, c1, d2, d1];
   }
 
-  let ta = d2 - d1;
-  let tb = c1 - c2;
+  // We need to solve: θ1(t) = θ2(t) (mod 360)
+  // (c1 - c2)t = d2 - d1 (mod 360)
+  // t = (d2 - d1 + 360k) / (c1 - c2)
+  // We want the smallest non-negative t.
 
-  const commonDivisor = gcd(ta, tb);
-  ta /= commonDivisor;
-  tb /= commonDivisor;
+  let diff = d2 - d1;
+  while (diff < 0) diff += 360; // Ensure positive numerator
+  diff %= 360; // Smallest positive offset
 
-  return compareAndReturn(t1, [ta, tb]);
+  const ta = diff;
+  const tb = c1 - c2; // Guaranteed positive by swap above
+
+  const common = gcd(ta, tb);
+  const t_angle = [ta / common, tb / common];
+
+  // Return the earlier of: hitting the origin OR aligning angles
+  return compareAndReturn(t_zero, t_angle);
 }
 
+/**
+ * Handles logic when Radius functions INTERSECT at exactly one point.
+ * We calculate that specific time t, then check if angles match at that moment.
+ */
 function findCollisionNotParallel(a1, b1, c1, d1, a2, b2, c2, d2) {
-  if (b1 === b2) {
-    if ((d1 - d2) % 360 === 0 || b1 === 0) {
-      return [0, 1];
-    }
-    return null;
-  }
+  // Solve r1(t) = r2(t)
+  // a1*t + b1 = a2*t + b2  ==>  t(a1 - a2) = b2 - b1
+  // t = (b2 - b1) / (a1 - a2)
+  let num = b2 - b1;
+  let den = a1 - a2;
 
-  // BIGINT FIX: Verify strictly using multiplication to avoid overflow
-  // (a1 - a2) * (b1 - b2) > 0 check:
-  const diffA = BigInt(a1 - a2);
-  const diffB = BigInt(b1 - b2);
+  if (den === 0) return null; // Safety guard (should be caught by solveCase)
 
-  if (diffA * diffB > 0n) {
-    return null;
-  }
+  // Validate t >= 0. Signs of num and den must match.
+  if ((num < 0 && den > 0) || (num > 0 && den < 0)) return null;
 
-  if (a2 > a1) {
-    [a1, a2, b1, b2] = [a2, a1, b2, b1];
-  }
+  num = Math.abs(num);
+  den = Math.abs(den);
 
-  let ta = b2 - b1;
-  let tb = a1 - a2;
+  const common = gcd(num, den);
+  const ta = num / common;
+  const tb = den / common; // ta/tb is our candidate time t
 
-  const commonDivisor = gcd(ta, tb);
-  ta /= commonDivisor;
-  tb /= commonDivisor;
+  // CHECK 1: Do angles match at this time t?
+  // θ1 = c1(ta/tb) + d1
+  // θ2 = c2(ta/tb) + d2
+  // Match condition: θ1 - θ2 is a multiple of 360
+  // (c1 - c2)(ta/tb) + (d1 - d2) = 360k
+  // Multiply by tb to clear denominator:
+  // (c1 - c2)*ta + (d1 - d2)*tb = 360*tb*k
+  // Therefore, LHS must be divisible by (360 * tb)
 
-  // BIGINT FIX: The verification math
-  // ((c1 - c2) * ta + (d1 - d2) * tb) % (360 * tb) === 0
+  // BigInt is CRITICAL here. c1, ta, d1, tb can be ~10^4.
+  // Products can reach 10^8. While safe for JS Number (10^15),
+  // intermediate steps or larger inputs in other problems might overflow.
+  // It also ensures precise modulo operations on negative numbers.
   const term1 = BigInt(c1 - c2) * BigInt(ta);
   const term2 = BigInt(d1 - d2) * BigInt(tb);
-  const total = term1 + term2;
+  const lhs = term1 + term2;
   const modBase = BigInt(360) * BigInt(tb);
 
-  // Check collision conditions
-  const rZero = BigInt(a1) * BigInt(ta) + BigInt(b1) * BigInt(tb) === 0n;
-  const angleMatch = total % modBase === 0n;
+  if (lhs % modBase === 0n) {
+    return [ta, tb];
+  }
 
-  if (rZero || angleMatch) {
+  // CHECK 2: Is the radius Zero at this time t?
+  // If r=0, the particles collide at origin regardless of angles.
+  // r1 = a1(ta/tb) + b1 = (a1*ta + b1*tb) / tb
+  // We check if numerator is 0.
+  if (BigInt(a1) * BigInt(ta) + BigInt(b1) * BigInt(tb) === 0n) {
     return [ta, tb];
   }
 
@@ -177,25 +203,21 @@ function findCollisionNotParallel(a1, b1, c1, d1, a2, b2, c2, d2) {
 
 function solve() {
   let out = "";
-
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
-    // Safety for splitting strings with multiple spaces
-    const parameters = line.split(/\s+/).map((x) => parseInt(x));
+    // Parse using regex to handle multiple spaces safely
+    const p = line.split(/\s+/).map(Number);
 
-    if (parameters.length < 8) continue;
-    if (!parameters.some((x) => x !== 0)) {
-      break;
-    }
+    // Basic input validation
+    if (p.length < 8) continue;
 
-    const collision = findCollision(...parameters);
+    // Check for termination case (all zeros)
+    if (p.every((x) => x === 0)) break;
 
-    out += collision + "\n";
+    out += findCollision(...p) + "\n";
   }
-
-  out += "\n";
   return out;
 }
 

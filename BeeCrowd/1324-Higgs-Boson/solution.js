@@ -2,8 +2,8 @@
 
 // Read from Standard Input (File Descriptor 0)
 // We use trim() to avoid trailing whitespace issues, and split by any newline.
-const input = require("fs").readFileSync(0, "utf8");
-// const input = require("fs").readFileSync("./dev/stdin2", "utf8");
+// const input = require("fs").readFileSync(0, "utf8");
+const input = require("fs").readFileSync("./dev/stdin2", "utf8");
 const lines = input.trim().split(/[\r\n]+/);
 
 /**
@@ -12,8 +12,6 @@ const lines = input.trim().split(/[\r\n]+/);
  * Note: Uses Math.abs() to ensure we don't get negative divisors.
  */
 function gcd(a, b) {
-  a = Math.abs(a);
-  b = Math.abs(b);
   return b === 0 ? a : gcd(b, a % b);
 }
 
@@ -96,13 +94,12 @@ function findCollisionOverlapping(a, b, c1, d1, c2, d2) {
   let t_zero = null;
 
   if (a !== 0) {
-    const num = -b;
-    const den = a;
     // We strictly need time t >= 0
     // Check sign match: (num >= 0 and den > 0) OR (num <= 0 and den < 0)
-    if ((num >= 0 && den > 0) || (num <= 0 && den < 0)) {
+    if (a * b < 0) {
+      const [den, num] = a > 0 ? [a, -b] : [-a, b];
       const common = gcd(num, den);
-      t_zero = [Math.abs(num) / common, Math.abs(den) / common];
+      t_zero = [num / common, den / common];
     }
   } else if (b === 0) {
     // If A=0 and B=0, radius is ALWAYS 0. Collision is immediate at t=0.
@@ -133,7 +130,6 @@ function findCollisionOverlapping(a, b, c1, d1, c2, d2) {
 
   let diff = d2 - d1;
   while (diff < 0) diff += 360; // Ensure positive numerator
-  diff %= 360; // Smallest positive offset
 
   const ta = diff;
   const tb = c1 - c2; // Guaranteed positive by swap above
@@ -159,10 +155,7 @@ function findCollisionNotParallel(a1, b1, c1, d1, a2, b2, c2, d2) {
   if (den === 0) return null; // Safety guard (should be caught by solveCase)
 
   // Validate t >= 0. Signs of num and den must match.
-  if ((num < 0 && den > 0) || (num > 0 && den < 0)) return null;
-
-  num = Math.abs(num);
-  den = Math.abs(den);
+  if (num * den < 0) return null;
 
   const common = gcd(num, den);
   const ta = num / common;
@@ -203,21 +196,20 @@ function findCollisionNotParallel(a1, b1, c1, d1, a2, b2, c2, d2) {
 
 function solve() {
   let out = "";
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
     // Parse using regex to handle multiple spaces safely
-    const p = line.split(/\s+/).map(Number);
-
-    // Basic input validation
-    if (p.length < 8) continue;
+    const p = line.split(" ").map(Number);
 
     // Check for termination case (all zeros)
     if (p.every((x) => x === 0)) break;
 
     out += findCollision(...p) + "\n";
   }
+
   return out;
 }
 

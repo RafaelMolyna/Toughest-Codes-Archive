@@ -43,9 +43,9 @@ Online Judge), enjoying its friendly interface and categorized
 difficulty levels.
 
 So I'm providing here some revised solutions I created at that time,
-solving some of the most intrincated and challenging problems in the 
+solving some of the most intricated and challenging problems in the 
 platform. Some of them are really creative and smart, and took me a
-bunch of time and deep reflection. Enjoy! 🎉
+bunch of time and deep reflection to make. Enjoy! 🎉
 
 ### 💭 The Philosophy
 

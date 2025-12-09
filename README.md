@@ -34,11 +34,18 @@ Hello! Ever searched for a solution to a 1% acceptance rate problem,
 only to find... nothing? Even when you do find one, a 50-line C++ file
 with zero comments isn\'t always helpful.
 
+**This repository is my contribution to filling that void!**
+
 When I started programming, I jumped into **Competitive Programming** to
 fill the gaps in my knowledge of Computer Science algorithms and data
 structures. I practiced extensively on **Beecrowd** (formerly URI
 Online Judge), enjoying its friendly interface and categorized
 difficulty levels.
+
+So I'm providing here some revised solutions I created at that time,
+solving some of the most intrincated and challenging problems in the 
+platform. Some of them are really creative and smart, and took me a
+bunch of time and deep reflection. Enjoy! 🎉
 
 ### 💭 The Philosophy
 
@@ -60,7 +67,7 @@ I lamented this \"hiding\" culture. While ranks matter to some, I
 believe the **real gold** lies in understanding how to unpuzzle these
 intricate challenges.
 
-**This repository is my contribution to filling that void.**
+> **This repository is my contribution to filling that void.**
 
 ## 🎯 Why This Matters
 

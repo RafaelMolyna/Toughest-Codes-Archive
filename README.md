@@ -42,10 +42,14 @@ structures. I practiced extensively on **Beecrowd** (formerly URI
 Online Judge), enjoying its friendly interface and categorized
 difficulty levels.
 
-So I'm providing here some revised solutions I created at that time,
-solving some of the most intricated and challenging problems in the 
-platform. Some of them are really creative and smart, and took me a
-bunch of time and deep reflection to make. Enjoy! 🎉
+I'm providing here some revised solutions I created at that time,
+solving some of the most intricated and challenging competitive
+programming problems in the platform, sidealong with their step-by-step
+logic breakdown and commented code, in order to help other students.
+
+Some of these solutions cost me a bunch of time and deep reflection to
+build, ending up being really creative and smart, but achieving the first
+positions in the ranks! Enjoy them! 🎉
 
 ### 💭 The Philosophy
 
